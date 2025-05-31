@@ -1,0 +1,377 @@
+---
+title: "observe of death in Taiwan 2013_2022 by ggplot"
+author: "jerry"
+date: "2025-05-30"
+output: html_document
+---
+This is a case study  for my Google Data Analytics Professional Certificate ,and the theme is about mortality rate in Taiwan. In this file I will use steps in certificate to analyze death population in Taiwan by ggplot.
+
+#Ask
+Population and age structure are huge issue for a country. Taiwan has the lowest fertility rate in 2024. Since we can't increase the birth, I was wondering if I can find other ways to decrease population lose. So I need to know the situation about death people in Taiwan.
+
+#Prepare
+
+
+```{r download packages}
+
+library("dplyr")
+library("ggplot2")
+library("tidyverse")
+```
+##Source of data
+**These data are from Government Information Open Platform, Ministry of Digital Affairs in Taiwan.**
+https://data.gov.tw/
+
+death_toll_cause_of_death.csv
+https://data.gov.tw/dataset/123975
+
+death_toll_group_by_age.csv
+https://data.gov.tw/dataset/125782
+
+Data was download at 2025/05/30
+
+The government update data once a year, so if you want the same data when I downloaded, here is the link:
+
+death_toll_cause_of_death.csv
+https://drive.google.com/file/d/1ZS5SFK4tJXLnjzIXPaVpLraQ7GdBLXQn/view?usp=sharing
+
+death_toll_group_by_age.csv
+https://drive.google.com/file/d/1-CTVEsOSbojYIQhdrSm3v1HCO6M4nqXP/view?usp=sharing
+
+
+```{r import  data}
+setwd("C:/R/death")
+
+death_toll_cause_of_death <- read.csv("death_toll_cause_of_death.csv", sep=",", header=TRUE, na = "NA")
+death_toll_group_by_age <- read.csv("death_toll_group_by_age.csv", sep=",", header=TRUE,na = "NA")
+```
+
+
+#Process
+The column names' description of data are from link of the original source of data, but these description is written by Chinese (Mandarian). So I need to translate into English. 
+
+
+```{r change col names}
+#cause_of_death
+
+colnames(death_toll_cause_of_death) <- c("year","male_total","female_total",
+                                         "male_cancer","female_cancer",
+                                         "male_heart_disease","female_heart_disease",
+"male_cerebrovascular_disease","female_cerebrovascular_disease",
+                                         "male_diabetes","female_diabetes",
+                                         "male_pneumonia","female_pneumonia",
+                                         "male_kidney_disease","female_kidney_disease",
+                                         "male_suicide","female_suicide",
+                                         "male_accident_injury","female_accident_injury",
+                                         "male_chronic_liver_disease","female_chronic_liver_disease",
+                                         "male_hypertension","female_hypertension",
+                                         "male_other","female_other")
+##select data between 2013-2022
+death_toll_cause_of_death <- death_toll_cause_of_death[8:17,]
+
+
+
+#group by age
+##delete duplicate column
+death_toll_group_by_age <- select(death_toll_group_by_age,-4,-5)
+
+colnames(death_toll_group_by_age) <- c("year","male_0","female_0","male_1_4","female_1_4",
+                                       "male_5_14","female_5_14","male_15_24","female_15_24",
+                                       "male_25_44","female_25_44","male_45_64","female_45_64",
+                                       "male_65_older","female_65_older",
+                                       "male_average_age","female_average_age",
+                                       "male_median_age","female_median_age")
+##select data between 2013-2022
+death_toll_group_by_age <- death_toll_group_by_age[8:17,]
+```
+
+#Analyze and Share
+In order to make the chart by ggplot, I change the form of the data.
+
+##polt1:
+As you see the plot1 below,both population (male and female) has increased over the years.
+```{r plot1}
+polt1_male <- death_toll_cause_of_death[,c(1,2)] 
+polt1_male$sex <- c("male")
+colnames(polt1_male) <- c("year","number_of_people","sex")
+
+polt1_female <- death_toll_cause_of_death[,c(1,3)] 
+polt1_female$sex <- c("female")
+colnames(polt1_female) <- c("year","number_of_people","sex")
+
+polt1 <- rbind(polt1_male,polt1_female)
+
+#make polt1
+ggplot(data = polt1, aes(x=year,y=number_of_people))+
+  geom_point(aes(color = sex))+
+  scale_x_continuous(limits = c(2011,2023), breaks = seq(2013,2022,1))+
+  facet_wrap(~sex)+
+  coord_flip()
+```
+
+##data for plot2,plot3, and plot4
+In plot2, plot3, and plot4, I want to know what is the main cause of the death of the group, so I combine different columns into 6 causes.
+```{r cause_of_death_plot2,plot3,plot4}
+data_for_plot2_3_4 <- death_toll_cause_of_death
+death_toll_cause_of_death_sum <- colSums(death_toll_cause_of_death)
+data_for_plot2_3_4 <- rbind(death_toll_cause_of_death,death_toll_cause_of_death_sum)
+```
+
+Plot 2 combine both male and female population,the main cause from high to low by % are: disease 38.12%, cancer 29.24%, other 24.41%, accident 3.07%, hypertension 2.66%, and suicide 2.51%.
+
+##plot2
+```{r plot2}
+plot2 <-data_for_plot2_3_4 %>% mutate(cancer = male_cancer + female_cancer, 
+                          disease = male_heart_disease + female_heart_disease+
+                            male_cerebrovascular_disease + female_cerebrovascular_disease + 
+                            male_diabetes + female_diabetes + male_pneumonia + female_pneumonia + 
+                            male_kidney_disease + female_kidney_disease + 
+                          male_chronic_liver_disease + female_chronic_liver_disease,
+                          suicide = male_suicide + female_suicide,
+                          accident =  male_accident_injury + female_accident_injury,
+                          hypertension = male_hypertension + female_hypertension,
+                          other = male_other + female_other)
+plot2 <- plot2[11,26:31] 
+plot2 <- data.frame(t(plot2),check.names=F)
+
+cause <- c("cancer","disease","suicide","accident","hypertension","other")
+plot2  <- cbind(cause,plot2)
+colnames(plot2) <- c("cause","number_of_people")
+
+
+#create pie chart
+ggplot(plot2, aes(x="", y=number_of_people, fill = cause)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/242389*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Purples")
+```
+##plot3
+I'm wondering is the percentage of main cause in male and female will be different? So in plot3 I only calculate male population. The result below are: 
+disease 37.6%, cancer 29.41%, other 24.28%, accident 3.67%, suicide 2.67%, and hypertension 2.4%.
+
+```{r plot3}
+##plot3_cause_of_death_in male
+plot3 <-data_for_plot2_3_4 %>% mutate(cancer = male_cancer, 
+                                      disease = male_heart_disease +
+                                        male_cerebrovascular_disease + 
+                                        male_diabetes + male_pneumonia + 
+                                        male_kidney_disease + 
+                                        male_chronic_liver_disease,
+                                      suicide = male_suicide,
+                                      accident =  male_accident_injury,
+                                      hypertension = male_hypertension,
+                                      other = male_other)
+plot3 <- plot3[11,26:31] 
+plot3 <- data.frame(t(plot3),check.names=F)
+
+cause <- c("cancer","disease","suicide","accident","hypertension","other")
+plot3  <- cbind(cause,plot3)
+colnames(plot3) <- c("cause","number_of_people")
+
+
+#create pie chart
+ggplot(plot3, aes(x="", y=number_of_people, fill = cause)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/144836*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Blues")
+```
+
+##plot4
+Plot4 are the percentage of main cause in female.The result below are: 
+disease 28.97%, cancer 38.89%, other 24.61%,hypertension 3.04%,suicide 2.26%, and accident 2.22%.
+The highest percentage of cause of female population is cancer.
+
+
+```{r plot4}
+##plot4_cause_of_death_in female
+plot4 <-data_for_plot2_3_4 %>% mutate(cancer = female_cancer, 
+                                      disease = female_heart_disease +
+                                      female_cerebrovascular_disease + 
+                                      female_diabetes + female_pneumonia + 
+                                      female_kidney_disease + 
+                                      female_chronic_liver_disease,
+                                      suicide = female_suicide,
+                                      accident =  female_accident_injury,
+                                      hypertension = female_hypertension,
+                                      other = female_other)
+plot4 <- plot4[11,26:31] 
+plot4 <- data.frame(t(plot4),check.names=F)
+
+cause <- c("cancer","disease","suicide","accident","hypertension","other")
+plot4  <- cbind(cause,plot4)
+colnames(plot4) <- c("cause","number_of_people")
+
+
+#create pie chart
+ggplot(plot4, aes(x="", y=number_of_people, fill = cause)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/97553*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Reds")
+
+```
+
+##plot5
+The average age of death is increasing for both male and female population.
+```{r plot5}
+death_toll_group_by_age$male_average_age <- as.integer(death_toll_group_by_age$male_average_age)
+death_toll_group_by_age$female_average_age <- as.integer(death_toll_group_by_age$female_average_age)
+
+
+
+plot5_male <- death_toll_group_by_age[,c(1,16)] 
+plot5_male$sex <- c("male")
+colnames(plot5_male) <- c("year","average_age","sex")
+
+plot5_female <- death_toll_group_by_age[,c(1,17)] 
+plot5_female$sex <- c("female")
+colnames(plot5_female) <- c("year","average_age","sex")
+
+plot5 <- rbind(plot5_male,plot5_female)
+
+ggplot(data = plot5, aes(x=year,y=average_age))+
+  geom_point(aes(color = sex))+
+  scale_x_continuous(limits = c(2011,2024), breaks = seq(2013,2023,1))+
+  facet_wrap(~sex)+
+  coord_flip()
+```
+
+
+##data for plot6,plot7, and plot8
+In plot6,plot7, and plot8, I separated population by young age population(0-14), Working age population(15-64), and Old age Population(>=65).
+```{r data for plot6,plot7, and plot8}
+data_for_plot6_7_8 <- death_toll_group_by_age[,2:15]
+data_for_plot6_7_8_sum <- colSums(data_for_plot6_7_8)
+data_for_plot6_7_8 <- rbind(data_for_plot6_7_8,data_for_plot6_7_8_sum)
+```
+
+##plot6
+The population structure of death in 2013-2022 in Taiwan is:
+young age population(0-14) 0.78%
+Working age population(15-64) 29.96%
+Old age Population(>=65)  69.25%
+```{r plot6}
+plot6 <-data_for_plot6_7_8 %>% mutate(young_age_population = 
+                                        male_0 + female_0 + 
+                                        male_1_4 + female_1_4 + 
+                                        male_5_14 + female_5_14,
+                                      working_age_population = 
+                                        male_15_24 + female_15_24 + 
+                                        male_25_44 + female_25_44 + 
+                                        male_45_64 + female_45_64,
+                                      old_age_population = 
+                                        male_65_older + female_65_older)
+plot6 <- plot6[11,15:17] 
+plot6 <- data.frame(t(plot6),check.names=F)
+
+age_sturcture <- c("young_age_population","working_age_population","old_age_population")
+plot6  <- cbind(age_sturcture,plot6)
+colnames(plot6) <- c("age_sturcture","number_of_people")                                        
+                                      
+
+ggplot(plot6, aes(x="", y=number_of_people, fill = age_sturcture)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/242455*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Purples")
+```
+
+##plot7
+In male population:
+young age population(0-14) 0.75%
+Working age population(15-64) 34.14%
+Old age Population(>=65)  65.11%
+```{r plot7}
+plot7 <-data_for_plot6_7_8 %>% mutate(young_age_population = 
+                                          male_0 + 
+                                          male_1_4 + 
+                                          male_5_14,
+                                        working_age_population = 
+                                          male_15_24 +
+                                          male_25_44 + 
+                                          male_45_64,
+                                        old_age_population = 
+                                          male_65_older)
+plot7 <- plot7[11,15:17] 
+plot7 <- data.frame(t(plot7),check.names=F)
+
+age_sturcture <- c("young_age_population","working_age_population","old_age_population")
+plot7  <- cbind(age_sturcture,plot7)
+colnames(plot7) <- c("age_sturcture","number_of_people")                                        
+
+
+ggplot(plot7, aes(x="", y=number_of_people, fill = age_sturcture)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/144900*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Blues")
+```
+
+##plot8
+The percentage of old age population in female is higher than male.
+young age population(0-14) 0.83%
+Working age population(15-64) 23.76%
+Old age Population(>=65)  75.41%
+```{r plot8}
+plot8 <-data_for_plot6_7_8 %>% mutate(young_age_population = 
+                                          female_0 + 
+                                          female_1_4 + 
+                                          female_5_14,
+                                        working_age_population = 
+                                          female_15_24 +
+                                          female_25_44 + 
+                                          female_45_64,
+                                        old_age_population = 
+                                          female_65_older)
+plot8 <- plot8[11,15:17] 
+plot8 <- data.frame(t(plot8),check.names=F)
+
+age_sturcture <- c("young_age_population","working_age_population","old_age_population")
+plot8  <- cbind(age_sturcture,plot8)
+colnames(plot8) <- c("age_sturcture","number_of_people")                                        
+
+
+ggplot(plot8, aes(x="", y=number_of_people, fill = age_sturcture)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = paste0(round(number_of_people/97555*100,2), "%")), position = position_stack(vjust=0.5)) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_classic() +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  scale_fill_brewer(palette="Reds")  
+```
+#Conclusion
+In the analysis of main cause to death, we could put more effort on prevent cancer in female population,and prevent disease in male population.
+
+The average age of death are more older, it may proof our medical system is become better. However, we still have to change our life style healthier to avoid get bed life quality of our lives.
+
+
